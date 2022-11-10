@@ -1,9 +1,13 @@
 {
-  "name": "sharp_snippets",
+  "name": "sharp-snippets",
   "displayName": "Sharp Snippets",
   "description": "Create smart snippets for C# with namespace auto-completion support.",
   "version": "1.0.0",
-  "publisher": "Ahmed Aljaff",
+  "publisher": "aljaff94",
+  "author": {
+    "name": "Ahmed Aljaff",
+    "email": "aljaff94@gmail.com"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/aljaff94/sharp-snippets"
