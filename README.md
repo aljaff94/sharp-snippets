@@ -18,6 +18,4 @@ Visual Studio Code snippet extension for C# to create [class | interface | enum 
 ![Example](images/example.gif)
 
 
-## Contributes
-any contributes to the code all welcome
 
