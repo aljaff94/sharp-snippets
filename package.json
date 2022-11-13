@@ -2,7 +2,7 @@
   "name": "sharp-snippets",
   "displayName": "Sharp Snippets",
   "description": "Create smart snippets for C# with namespace auto-completion support.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "aljaff94",
   "author": {
     "name": "Ahmed Aljaff",
@@ -30,6 +30,18 @@
   "activationEvents": [
     "onLanguage:csharp"
   ],
+  "contributes": {
+    "configuration": {
+      "title": "SharpSnippets",
+      "properties": {
+        "sharpSnippets.preferFileScopedNamespaceConfig": {
+          "type": "boolean",
+          "default": true,
+          "description": "Prefer file scoped namespace over regular scope namespace (if supported)."
+        }
+      }
+    }
+  },
   "main": "./out/extension.js",
   "scripts": {
     "vscode:prepublish": "npm run compile",

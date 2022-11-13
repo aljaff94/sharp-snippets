@@ -1,16 +1,19 @@
 # Sharp Snippets
 
-Visual Studio Code snippet extension for C# to create [class | interface | enum ] with namespace auto-completion.
+Visual Studio Code snippet extension for C# language to create [ class | interface | enum | struct ] with namespace auto-completion.
 
 ## Features
 
-- Snippet to create [ class | interface | enum ] with namespace auto-completion
-- Namespace auto-completion can be read from csproj RootNamespace property or if not exist, the extension will use csproj file name as a namespace for project (same behavior as visual studio)
-- Replace spaces, - with _ in folder or file name like /Folder A/Folder B/My FileProj.cs namespace will be MyProject.Folder_A.Folder_B and class name will be My_FileProj
+- Support file-scoped namespace
+- Ability to use file-scoped namespace or old style namespace based on user setting and language support by checking csproj target framework and language version
+- Detected namespace by reading csproj file and check for RootNamespace property and if not exists then use csproj filename
+- Normalize filename to class name by converting it to pascal case and replace each space, dot with underscore
+
 
 ## Roadmap
-- [ ] option to use old style namespace
-- [ ] custom snippet prefix via settings
+- [x] option to use old style namespace
+- [x] auto detect file-scoped namespace support from csharp language version
+- [ ] custom snippet label via settings
 - [ ] namespace module auto complete
 
 ## See how it works
