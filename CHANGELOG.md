@@ -1,5 +1,7 @@
 # Change Log
 
+## [1.2.0]
+- Add support for Central Package Management (Directory.Packages.props)
 
 ## [1.1.0]
 

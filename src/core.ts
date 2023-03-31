@@ -5,9 +5,23 @@ import * as fs from 'fs';
 /**
  * Check if file extension is .cs
  */
-export function isCSharpFile(document: vscode.TextDocument) : boolean {
+export function isCSharpFile(document: vscode.TextDocument): boolean {
     // no need to check for language id becuase we are only registering for csharp files
     return document.fileName.endsWith('.cs')
+}
+
+export function findsDirectoryPackagesProps(document: vscode.TextDocument): string | null {
+    let _directoryPackagesPropsFilePath: string | null = null;
+    const _workspaceFolderPath = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.path
+    if (_workspaceFolderPath) {
+        // looking for Directory.Packages.props file in workspace folder
+        _directoryPackagesPropsFilePath = fs.readdirSync(_workspaceFolderPath).find(f => /Directory\.Packages\.props$/.test(f)) ?? null
+        // if Directory.Packages.props file is found, return full path
+        if (_directoryPackagesPropsFilePath) {
+            _directoryPackagesPropsFilePath = path.join(_workspaceFolderPath, _directoryPackagesPropsFilePath)
+        }
+    }
+    return _directoryPackagesPropsFilePath
 }
 
 /**
@@ -15,23 +29,23 @@ export function isCSharpFile(document: vscode.TextDocument) : boolean {
  * @param document 
  * @returns string | null
  */
-export function findCsprojFile(document: vscode.TextDocument) : string | null {
+export function findCsprojFile(document: vscode.TextDocument): string | null {
     let _csprojFilePath = null;
     const _workspaceFolderPath = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.path
-    if(_workspaceFolderPath) {
+    if (_workspaceFolderPath) {
         // looking for csproj file in workspace folder
         _csprojFilePath = fs.readdirSync(_workspaceFolderPath).find(f => /.\.csproj$/.test(f))
         // if csproj file is found, return full path
-        if(_csprojFilePath) {
+        if (_csprojFilePath) {
             _csprojFilePath = path.join(_workspaceFolderPath, _csprojFilePath)
         }
     }
     // either workspace folder does not exist or csproj file is not found in workspace folder
-    if(!_csprojFilePath) {
+    if (!_csprojFilePath) {
         // deep search from document folder to root folder
-        const {dir, root} = path.parse(document.fileName)
+        const { dir, root } = path.parse(document.fileName)
         let _searchDir = dir
-        while(_searchDir !== root) {
+        while (_searchDir !== root) {
             _csprojFilePath = fs.readdirSync(_searchDir).find(f => /.\.csproj$/.test(f));
             if (_csprojFilePath) {
                 // csproj file found in current search dir
@@ -50,15 +64,15 @@ export function findCsprojFile(document: vscode.TextDocument) : string | null {
  * @param csprojFilePath path to .csproj file
  * @returns string | null
  */
-export async function findNamespace(csprojFilePath: string, document: vscode.TextDocument) : Promise<string> {
+export async function findNamespace(csprojFilePath: string, document: vscode.TextDocument): Promise<string> {
     var _namespace = null;
     // find namespace from csproj file RootNamespace property
-    _namespace = await findValueInCsproj(csprojFilePath, 'RootNamespace');
+    _namespace = await findValueInXmlFile(csprojFilePath, 'RootNamespace');
     // if RootNamespace is not found then use csproj file name
-    if(!_namespace) {
+    if (!_namespace) {
         _namespace = path.basename(csprojFilePath, path.extname(csprojFilePath));
     }
-    
+
     // normalize namespace name
     return normalizeNamespace(_namespace, path.relative(path.dirname(csprojFilePath), path.dirname(document.fileName)));
 }
@@ -80,25 +94,35 @@ export function getClassName(document: vscode.TextDocument) {
  * @param csprojFilePath path to .csproj file
  * @returns boolean
  */
-export async function isFileScopedNamespaceSupported(csprojFilePath: string) : Promise<boolean> {
-    const langVersion = await findValueInCsproj(csprojFilePath, 'LangVersion')
+export async function isFileScopedNamespaceSupported(csprojFilePath: string, directoryPackagesPropsFilePath: string | null): Promise<boolean> {
 
-    // if user has specified LangVersion then check if it is greater than 10
-    if(langVersion) {
-        return langVersion == 'latest' || langVersion == 'preview' || Number.parseFloat(langVersion) >= 10
+    const langVersion = await findValueInXmlFile(csprojFilePath, 'LangVersion')
+        ?? await findValueInXmlFile(directoryPackagesPropsFilePath, 'LangVersion')
+        ?? null;
+
+    if (langVersion) {
+        return langVersion == 'latest' ||
+            langVersion == 'preview' ||
+            Number.parseFloat(langVersion) >= 10
     }
 
-    // if user has not specified LangVersion then check if TargetFramework is greater than net6.0
-    const targetFramework = await findValueInCsproj(csprojFilePath, 'TargetFramework')
-    if(targetFramework) {
-        return targetFramework.startsWith('net6') || targetFramework.startsWith('net7')
+    const targetFramework = await findValueInXmlFile(csprojFilePath, 'TargetFramework')
+        ?? await findValueInXmlFile(directoryPackagesPropsFilePath, 'TargetFramework')
+        ?? null;
+
+    if (targetFramework) {
+        return targetFramework.startsWith('net6') ||
+            targetFramework.startsWith('net7') ||
+            targetFramework.startsWith('net8')
     }
 
-    // if project has multiple target frameworks then check if any of them is greater than net6.0
-    // in this case user must have specified LangVersion for better support
-    const targetFrameworks = await findValueInCsproj(csprojFilePath, 'TargetFrameworks')
-    if(targetFrameworks) {
-        return targetFrameworks.split(';').some(f => f.startsWith('net6') || f.startsWith('net7'))
+    const targetFrameworks = await findValueInXmlFile(csprojFilePath, 'TargetFrameworks')
+        ?? await findValueInXmlFile(directoryPackagesPropsFilePath, 'TargetFrameworks')
+        ?? null;
+
+    if (targetFrameworks) {
+        return targetFrameworks.split(';')
+            .some(f => f.startsWith('net6') || f.startsWith('net7') || f.startsWith('net8'))
     }
 
     // nothing found so assume that file scoped namespace is not supported
@@ -116,10 +140,10 @@ export async function isFileScopedNamespaceSupported(csprojFilePath: string) : P
 export function generateClassSnippetText(namespaceName: string, className: string, classType: string, useFileScopedNamespace: boolean) {
     let _snippetText = '';
     const _indent = useFileScopedNamespace ? '' : '\t';
-    
+
     _snippetText += `namespace ${namespaceName}`;
 
-    if(useFileScopedNamespace) {
+    if (useFileScopedNamespace) {
         _snippetText += `;\n\n`;
     } else {
         _snippetText += `\n{\n`;
@@ -127,7 +151,7 @@ export function generateClassSnippetText(namespaceName: string, className: strin
 
     _snippetText += `${_indent}public ${classType} ${className}\n${_indent}{\n${_indent}\t$0\n${_indent}}\n`;
 
-    if(!useFileScopedNamespace) {
+    if (!useFileScopedNamespace) {
         _snippetText += `}`;
     }
 
@@ -152,16 +176,29 @@ export function generateCompletionItem(label: string, insertText: string, docume
 }
 
 
-/**
- * Read csproj file and find value for given property
- * @param csprojFilePath path to .csproj file
- * @param key xml key
- * @returns string | null
- */
-async function findValueInCsproj(csprojFilePath: string, key: string) : Promise<string | null> {
-    const csproj = await vscode.workspace.openTextDocument(csprojFilePath);
-    // const matches = csproj.getText().match(/</ + key +/>([\w.]+)<\// + key +/>/);
-    const matches = csproj.getText().match(new RegExp(`<${key}>([\\w.]+)</${key}>`));
+// /**
+//  * Read csproj file and find value for given property
+//  * @param csprojFilePath path to .csproj file
+//  * @param key xml key
+//  * @returns string | null
+//  */
+// async function findValueInCsproj(csprojFilePath: string, key: string): Promise<string | null> {
+//     const csproj = await vscode.workspace.openTextDocument(csprojFilePath);
+//     // const matches = csproj.getText().match(/</ + key +/>([\w.]+)<\// + key +/>/);
+//     const matches = csproj.getText().match(new RegExp(`<${key}>([\\w.]+)</${key}>`));
+//     if (matches) {
+//         return matches[1];
+//     }
+//     return null;
+// }
+
+
+async function findValueInXmlFile(filePath: string | null, key: string): Promise<string | null> {
+    if (filePath == null) {
+        return null;
+    }
+    const xml = await vscode.workspace.openTextDocument(filePath);
+    const matches = xml.getText().match(new RegExp(`<${key}>([\\w.]+)</${key}>`));
     if (matches) {
         return matches[1];
     }

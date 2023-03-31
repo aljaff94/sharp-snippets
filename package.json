@@ -2,7 +2,7 @@
   "name": "sharp-snippets",
   "displayName": "Sharp Snippets",
   "description": "Create smart snippets for C# with namespace auto-completion support.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "aljaff94",
   "author": {
     "name": "Ahmed Aljaff",
